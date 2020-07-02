@@ -194,6 +194,7 @@
         if (endTagMatch) {
           advance(endTagMatch[0].length);
           end(endTagMatch[1]);
+          continue;
         }
       }
 
