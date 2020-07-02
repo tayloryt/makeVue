@@ -1,4 +1,11 @@
 //判断是否数组
 export function isObject(data) {
-    return Object.prototype.toString.call(data) === '[object Object]'
+    return typeof data === 'object' && data !==null
+}
+export function def(data, key, value) {
+    Object.defineProperty(data, key, {
+        enumerable: false,
+        configurable: false,
+        value
+    })
 }

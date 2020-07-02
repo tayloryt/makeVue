@@ -2,10 +2,24 @@
  * 观测数据
  * @param {data} 
  */
-import { isObject } from '../utils/index'
+import { isObject, def } from '../utils/index'
+import {arrayMethods} from './observeArray'
 class Observe{
     constructor(value) {
-        this.walk(value)
+        console.log(value)
+        if (Array.isArray(value)) {
+            def(value, '__ob__', this)
+            value.__proto__ = arrayMethods
+            this.observeArray(value)
+        } else {
+            this.walk(value)
+        }
+       
+    }
+    observeArray(value) {
+        for (let i = 0; i < value.length; i++){
+            observe(value[i])
+        }
     }
     walk(value) {
         Object.keys(value).forEach(key => {
