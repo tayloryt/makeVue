@@ -1,74 +1,59 @@
-const ncname = `[a-zA-Z_][\\-\\.0-9_a-zA-Z]*`;
-const qnameCapture = `((?:${ncname}\\:)?${ncname})`;
-const startTagOpen = new RegExp(`^<${qnameCapture}`);
-const endTag = new RegExp(`^<\\/${qnameCapture}[^>]*>`);
-const attribute = /^\s*([^\s"'<>\/=]+)(?:\s*(=)\s*(?:"([^"]*)"+|'([^']*)'+|([^\s"'=<>`]+)))?/;
-const startTagClose = /^\s*(\/?)>/;
+import { parseHtml } from './parser-html'
 const defaultTagRE = /\{\{((?:.|\r?\n)+?)\}\}/g
-function end(tagName) {
-    console.log("结束标签",tagName)
-}
-function chars(text) {
-    console.log("文本内容",text)
-}
-function start(tagName,attrs) {
-    console.log(tagName,attrs)
-}
-function parseHtml(html) {
-    while (html) {
-        let textEnd = html.indexOf('<')
-        if (textEnd === 0) {
-            let startTagMatch = parseStartTag()
-            if (startTagMatch) {
-                start(startTagMatch.tagName,startTagMatch.attrs)
-            continue
-            }
-            let endTagMatch = html.match(endTag)
-            if (endTagMatch) {
-                advance(endTagMatch[0].length)
-                end(endTagMatch[1])
-                continue
-            }
-        }
-        let text;
-        if (textEnd >= 0) {
-            text = html.substring(0, textEnd)
-        }
-        if (text) {
-            advance(text.length) 
-            chars(text)
+function genProps(attrs) {
+    let str = '';
+    for (let i = 0; i < attrs.length; i++){
+        if (attrs[i].name === 'style') {
+            let value = attrs[i].value
+            value = value.replace(/\;/g, ',')
+            str += `${attrs[i].name}:{${value.slice(0,-1)}},`
+        } else {
+        str +=`${attrs[i].name}:${attrs[i].value},`   
         }
     }
-    function advance(n) {
-        html = html.substring(n)
-    }
-    function parseStartTag() {
-        let start = html.match(startTagOpen);
-        if (start) {
-            const match = {
-                tagName: start[1],
-                attrs:[]
-            }
-            advance(start[0].length)
-            let end, attr;
-            while (!(end = html.match(startTagClose)) && (attr = html.match(attribute))) {
-                match.attrs.push({
-                    name: attr[1],
-                    value:attr[3] || attr[4] || attr[5]
-                })
-                advance(attr[0].length)
-            }
-            if (end) {
-                advance(end[0].length)
-            }
-            return match
-        }
+   return `{${str.slice(0,-1)}}`
+}
+function genChildren(el) {
+    console.log(el)
+    let children = el.children
+    if (children && children.length) {
+       return `${children.map(c => 
+            gen(c)
+        ).join(',')}`
+    } else {
+        return false
     }
 }
-
+function generate(el) {
+    return `_c("${el.tag}",${el.attrs.length?genProps(el.attrs):'undefined'},${genChildren(el)})`
+}
+function gen(el) {
+    if (el.nodeType === 1) {
+       return generate(el)
+    } else {
+        console.log()
+        let lastIndex = defaultTagRE.lastIndex = 0
+        let tokens = []
+        let match, index;
+        let text = el.text
+        while (match = defaultTagRE.exec(text)) {
+            console.log(match)
+            let index = match.index;
+            if (index > lastIndex) {
+                tokens.push(JSON.stringify(text.slice(lastIndex,index)))
+            }
+            tokens.push(`_s(${match[1].trim()})`)
+            lastIndex = index + match[0].length
+        }
+        if (lastIndex<text.length) {
+            tokens.push(JSON.stringify(text.slice(lastIndex)))
+        }
+        return `_v(${tokens.join('+')})`
+   }
+}
 export function compilationToRender(template) {
     let root = parseHtml(template)
-    return function render() {
-        
-    }
+    let renderData = generate(root)
+    let renderFn = new Function(`with(this){${renderData}}`)
+    return renderFn
 }

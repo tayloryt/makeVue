@@ -164,17 +164,58 @@
   var endTag = new RegExp("^<\\/".concat(qnameCapture, "[^>]*>"));
   var attribute = /^\s*([^\s"'<>\/=]+)(?:\s*(=)\s*(?:"([^"]*)"+|'([^']*)'+|([^\s"'=<>`]+)))?/;
   var startTagClose = /^\s*(\/?)>/;
+  var root = null;
+  var stack = [];
+  var TAG_TYPE = 1;
+  var TEXT_TYPE = 3;
+  var currentParent;
+
+  function createAstElement(tagName, attrs) {
+    return {
+      tag: tagName,
+      parent: null,
+      children: [],
+      attrs: attrs,
+      nodeType: TAG_TYPE
+    };
+  }
 
   function end(tagName) {
-    console.log("结束标签", tagName);
+    var element = stack.pop();
+
+    if (element.tag !== tagName) {
+      throw new Error('html error');
+    }
+
+    currentParent = stack[stack.length - 1];
+
+    if (currentParent) {
+      currentParent.children.push(element);
+      element.parent = currentParent.tag;
+    }
   }
 
   function chars(text) {
-    console.log("文本内容", text);
+    text = text.replace(/\s/g, '');
+    var element = {
+      nodeType: TEXT_TYPE,
+      text: text
+    };
+
+    if (text && currentParent) {
+      currentParent.children.push(element);
+    }
   }
 
   function start(tagName, attrs) {
-    console.log(tagName, attrs);
+    var element = createAstElement(tagName, attrs);
+
+    if (!root) {
+      root = element;
+    }
+
+    currentParent = element;
+    stack.push(element);
   }
 
   function parseHtml(html) {
@@ -241,11 +282,80 @@
         return match;
       }
     }
+
+    return root;
+  }
+
+  var defaultTagRE = /\{\{((?:.|\r?\n)+?)\}\}/g;
+
+  function genProps(attrs) {
+    var str = '';
+
+    for (var i = 0; i < attrs.length; i++) {
+      if (attrs[i].name === 'style') {
+        var value = attrs[i].value;
+        value = value.replace(/\;/g, ',');
+        str += "".concat(attrs[i].name, ":{").concat(value.slice(0, -1), "},");
+      } else {
+        str += "".concat(attrs[i].name, ":").concat(attrs[i].value, ",");
+      }
+    }
+
+    return "{".concat(str.slice(0, -1), "}");
+  }
+
+  function genChildren(el) {
+    console.log(el);
+    var children = el.children;
+
+    if (children && children.length) {
+      return "".concat(children.map(function (c) {
+        return gen(c);
+      }).join(','));
+    } else {
+      return false;
+    }
+  }
+
+  function generate(el) {
+    return "_c(\"".concat(el.tag, "\",").concat(el.attrs.length ? genProps(el.attrs) : 'undefined', ",").concat(genChildren(el), ")");
+  }
+
+  function gen(el) {
+    if (el.nodeType === 1) {
+      return generate(el);
+    } else {
+      console.log();
+      var lastIndex = defaultTagRE.lastIndex = 0;
+      var tokens = [];
+      var match;
+      var text = el.text;
+
+      while (match = defaultTagRE.exec(text)) {
+        console.log(match);
+        var _index = match.index;
+
+        if (_index > lastIndex) {
+          tokens.push(JSON.stringify(text.slice(lastIndex, _index)));
+        }
+
+        tokens.push("_s(".concat(match[1].trim(), ")"));
+        lastIndex = _index + match[0].length;
+      }
+
+      if (lastIndex < text.length) {
+        tokens.push(JSON.stringify(text.slice(lastIndex)));
+      }
+
+      return "_v(".concat(tokens.join('+'), ")");
+    }
   }
 
   function compilationToRender(template) {
     var root = parseHtml(template);
-    return function render() {};
+    var renderData = generate(root);
+    var renderFn = new Function("with(this){".concat(renderData, "}"));
+    return renderFn;
   }
 
   function initMixin(Vue) {
@@ -265,7 +375,8 @@
 
         if (!template && el) {
           template = el.outerHTML;
-          compilationToRender(template);
+          var render = compilationToRender(template);
+          console.log(render);
         }
       }
     };
