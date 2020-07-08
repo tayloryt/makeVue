@@ -53,6 +53,16 @@
       value: value
     });
   }
+  function proxy(vm, source, key) {
+    Object.defineProperty(vm, key, {
+      get: function get() {
+        return vm[source][key];
+      },
+      set: function set(newVal) {
+        vm[source][key] = newVal;
+      }
+    });
+  }
 
   var oldArrayPrototype = Array.prototype;
   var arrayMethods = Object.create(oldArrayPrototype);
@@ -88,8 +98,6 @@
   var Observe = /*#__PURE__*/function () {
     function Observe(value) {
       _classCallCheck(this, Observe);
-
-      console.log(value);
 
       if (Array.isArray(value)) {
         def(value, '__ob__', this);
@@ -155,6 +163,11 @@
   function initData(vm) {
     var data = vm.$options.data;
     data = vm._data = typeof data === 'function' ? data.call(vm) : data;
+
+    for (var key in data) {
+      proxy(vm, '_data', key);
+    }
+
     observe(data);
   }
 
@@ -305,7 +318,6 @@
   }
 
   function genChildren(el) {
-    console.log(el);
     var children = el.children;
 
     if (children && children.length) {
@@ -325,14 +337,12 @@
     if (el.nodeType === 1) {
       return generate(el);
     } else {
-      console.log();
       var lastIndex = defaultTagRE.lastIndex = 0;
       var tokens = [];
       var match;
       var text = el.text;
 
       while (match = defaultTagRE.exec(text)) {
-        console.log(match);
         var _index = match.index;
 
         if (_index > lastIndex) {
@@ -358,6 +368,40 @@
     return renderFn;
   }
 
+  var Watcher = /*#__PURE__*/function () {
+    function Watcher(vm, getter, cb, options) {
+      _classCallCheck(this, Watcher);
+
+      this.vm = vm;
+      this.getter = getter;
+      this.cb = cb;
+      this.options = options;
+    }
+
+    _createClass(Watcher, [{
+      key: "get",
+      value: function get() {
+        this.getter();
+      }
+    }]);
+
+    return Watcher;
+  }();
+
+  function mountComponent(vm, el) {
+    var options = vm.$options;
+    vm.$el = el;
+
+    var updateComponent = function updateComponent() {
+      vm._update(vm._render());
+    };
+
+    new Watcher(vm, updateComponent, function () {}, true);
+  }
+  function lifecycleMixin(Vue) {
+    Vue.prototype._update = function () {};
+  }
+
   function initMixin(Vue) {
     Vue.prototype._init = function (options) {
       var vm = this;
@@ -376,10 +420,16 @@
         if (!template && el) {
           template = el.outerHTML;
           var render = compilationToRender(template);
-          console.log(render);
+          options.render = render;
         }
       }
+
+      mountComponent(vm, el);
     };
+  }
+
+  function renderMixin(Vue) {
+    Vue.prototype._render = function () {};
   }
 
   var Vue = function Vue(options) {
@@ -393,6 +443,8 @@
   };
 
   initMixin(Vue);
+  renderMixin(Vue);
+  lifecycleMixin(vue);
 
   return Vue;
 

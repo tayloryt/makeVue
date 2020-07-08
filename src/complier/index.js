@@ -14,7 +14,6 @@ function genProps(attrs) {
    return `{${str.slice(0,-1)}}`
 }
 function genChildren(el) {
-    console.log(el)
     let children = el.children
     if (children && children.length) {
        return `${children.map(c => 
@@ -31,13 +30,11 @@ function gen(el) {
     if (el.nodeType === 1) {
        return generate(el)
     } else {
-        console.log()
         let lastIndex = defaultTagRE.lastIndex = 0
         let tokens = []
         let match, index;
         let text = el.text
         while (match = defaultTagRE.exec(text)) {
-            console.log(match)
             let index = match.index;
             if (index > lastIndex) {
                 tokens.push(JSON.stringify(text.slice(lastIndex,index)))

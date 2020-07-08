@@ -1,12 +1,11 @@
 /**
  * 观测数据
- * @param {data} 
+ * @param {*}data 
  */
 import { isObject, def } from '../utils/index'
 import {arrayMethods} from './observeArray'
 class Observe{
     constructor(value) {
-        console.log(value)
         if (Array.isArray(value)) {
             def(value, '__ob__', this)
             value.__proto__ = arrayMethods
