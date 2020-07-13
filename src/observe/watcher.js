@@ -4,6 +4,7 @@ class Watcher{
         this.getter = getter;
         this.cb = cb;
         this.options = options
+        this.get();
     }
     get() {
         this.getter()

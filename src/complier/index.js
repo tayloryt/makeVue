@@ -4,12 +4,22 @@ function genProps(attrs) {
     let str = '';
     for (let i = 0; i < attrs.length; i++){
         if (attrs[i].name === 'style') {
-            let value = attrs[i].value
-            value = value.replace(/\;/g, ',')
-            str += `${attrs[i].name}:{${value.slice(0,-1)}},`
-        } else {
-        str +=`${attrs[i].name}:${attrs[i].value},`   
-        }
+            let obj = {};
+            attrs[i].value.split(';').forEach(item=>{
+                let [key, value] = item.split(':');
+                let styleName;
+                if (key.includes('-')) {
+                    const [classKey,name] = key.split('-')
+                    let replaceKey = name.substring(0, 1).toLocaleUpperCase()
+                    styleName = classKey + replaceKey+name.slice(1)
+                } else {
+                    styleName = key
+                }
+                obj[styleName] = value
+            });
+            attrs[i].value  = obj
+        } 
+        str +=`${attrs[i].name}:${JSON.stringify(attrs[i].value)},`   
     }
    return `{${str.slice(0,-1)}}`
 }
@@ -35,7 +45,7 @@ function gen(el) {
         let match, index;
         let text = el.text
         while (match = defaultTagRE.exec(text)) {
-            let index = match.index;
+             index = match.index;
             if (index > lastIndex) {
                 tokens.push(JSON.stringify(text.slice(lastIndex,index)))
             }
@@ -51,6 +61,6 @@ function gen(el) {
 export function compilationToRender(template) {
     let root = parseHtml(template)
     let renderData = generate(root)
-    let renderFn = new Function(`with(this){${renderData}}`)
+    let renderFn = new Function(`with(this){return ${renderData}}`)
     return renderFn
 }

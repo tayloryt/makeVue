@@ -6,8 +6,12 @@
     <title>Document</title>
 </head>
 <body>
-    <div id="app" class="app" style="color:white;background:black;">
+    <div id="app" class="app" style="color:white;background:black;font-size: 16px;">
         <p>hello{{world}}</p>
+        <ul>
+            <li>{{name}}</li>
+            <li>{{age}}</li>
+        </ul>
     </div>
     <script src="../dist/umd/vue.js"></script>
     <script>
@@ -15,11 +19,13 @@
             el:'#app',
             data() {
                 return {
-                    name:[{a:1},{b:2}]
+                    name:'yt',
+                    age:'23',
+                    world:'world'
                 }
             },
         })
-        vm._data.name.push({name:'yt'})
+        // vm._data.name.push({name:'yt'})
         console.log(vm.name)
     </script>
 </body>

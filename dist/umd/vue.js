@@ -42,6 +42,62 @@
     return Constructor;
   }
 
+  function _slicedToArray(arr, i) {
+    return _arrayWithHoles(arr) || _iterableToArrayLimit(arr, i) || _unsupportedIterableToArray(arr, i) || _nonIterableRest();
+  }
+
+  function _arrayWithHoles(arr) {
+    if (Array.isArray(arr)) return arr;
+  }
+
+  function _iterableToArrayLimit(arr, i) {
+    if (typeof Symbol === "undefined" || !(Symbol.iterator in Object(arr))) return;
+    var _arr = [];
+    var _n = true;
+    var _d = false;
+    var _e = undefined;
+
+    try {
+      for (var _i = arr[Symbol.iterator](), _s; !(_n = (_s = _i.next()).done); _n = true) {
+        _arr.push(_s.value);
+
+        if (i && _arr.length === i) break;
+      }
+    } catch (err) {
+      _d = true;
+      _e = err;
+    } finally {
+      try {
+        if (!_n && _i["return"] != null) _i["return"]();
+      } finally {
+        if (_d) throw _e;
+      }
+    }
+
+    return _arr;
+  }
+
+  function _unsupportedIterableToArray(o, minLen) {
+    if (!o) return;
+    if (typeof o === "string") return _arrayLikeToArray(o, minLen);
+    var n = Object.prototype.toString.call(o).slice(8, -1);
+    if (n === "Object" && o.constructor) n = o.constructor.name;
+    if (n === "Map" || n === "Set") return Array.from(o);
+    if (n === "Arguments" || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(n)) return _arrayLikeToArray(o, minLen);
+  }
+
+  function _arrayLikeToArray(arr, len) {
+    if (len == null || len > arr.length) len = arr.length;
+
+    for (var i = 0, arr2 = new Array(len); i < len; i++) arr2[i] = arr[i];
+
+    return arr2;
+  }
+
+  function _nonIterableRest() {
+    throw new TypeError("Invalid attempt to destructure non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method.");
+  }
+
   //判断是否数组
   function isObject(data) {
     return _typeof(data) === 'object' && data !== null;
@@ -306,12 +362,35 @@
 
     for (var i = 0; i < attrs.length; i++) {
       if (attrs[i].name === 'style') {
-        var value = attrs[i].value;
-        value = value.replace(/\;/g, ',');
-        str += "".concat(attrs[i].name, ":{").concat(value.slice(0, -1), "},");
-      } else {
-        str += "".concat(attrs[i].name, ":").concat(attrs[i].value, ",");
+        (function () {
+          var obj = {};
+          attrs[i].value.split(';').forEach(function (item) {
+            var _item$split = item.split(':'),
+                _item$split2 = _slicedToArray(_item$split, 2),
+                key = _item$split2[0],
+                value = _item$split2[1];
+
+            var styleName;
+
+            if (key.includes('-')) {
+              var _key$split = key.split('-'),
+                  _key$split2 = _slicedToArray(_key$split, 2),
+                  classKey = _key$split2[0],
+                  name = _key$split2[1];
+
+              var replaceKey = name.substring(0, 1).toLocaleUpperCase();
+              styleName = classKey + replaceKey + name.slice(1);
+            } else {
+              styleName = key;
+            }
+
+            obj[styleName] = value;
+          });
+          attrs[i].value = obj;
+        })();
       }
+
+      str += "".concat(attrs[i].name, ":").concat(JSON.stringify(attrs[i].value), ",");
     }
 
     return "{".concat(str.slice(0, -1), "}");
@@ -339,18 +418,18 @@
     } else {
       var lastIndex = defaultTagRE.lastIndex = 0;
       var tokens = [];
-      var match;
+      var match, index;
       var text = el.text;
 
       while (match = defaultTagRE.exec(text)) {
-        var _index = match.index;
+        index = match.index;
 
-        if (_index > lastIndex) {
-          tokens.push(JSON.stringify(text.slice(lastIndex, _index)));
+        if (index > lastIndex) {
+          tokens.push(JSON.stringify(text.slice(lastIndex, index)));
         }
 
         tokens.push("_s(".concat(match[1].trim(), ")"));
-        lastIndex = _index + match[0].length;
+        lastIndex = index + match[0].length;
       }
 
       if (lastIndex < text.length) {
@@ -364,7 +443,7 @@
   function compilationToRender(template) {
     var root = parseHtml(template);
     var renderData = generate(root);
-    var renderFn = new Function("with(this){".concat(renderData, "}"));
+    var renderFn = new Function("with(this){return ".concat(renderData, "}"));
     return renderFn;
   }
 
@@ -376,6 +455,7 @@
       this.getter = getter;
       this.cb = cb;
       this.options = options;
+      this.get();
     }
 
     _createClass(Watcher, [{
@@ -388,6 +468,58 @@
     return Watcher;
   }();
 
+  function patch(oldVnode, vnode) {
+    var isRealNode = oldVnode.nodeType;
+
+    if (isRealNode) {
+      var oldElm = oldVnode;
+      var parentElm = oldVnode.parentNode;
+      var el = createElm(vnode);
+      parentElm.insertBefore(el, oldElm.nextSibling);
+      parentElm.removeChild(oldElm);
+    }
+  }
+
+  function createElm(vnode) {
+    var tag = vnode.tag,
+        data = vnode.data,
+        children = vnode.children,
+        key = vnode.key,
+        text = vnode.text;
+
+    if (typeof tag === 'string') {
+      vnode.el = document.createElement(tag);
+      updateProperties(vnode);
+      children.forEach(function (child) {
+        return vnode.el.appendChild(createElm(child));
+      });
+    } else {
+      //虚拟dom映射真实dom
+      vnode.el = document.createTextNode(text);
+    }
+
+    return vnode.el;
+  }
+
+  function updateProperties(vnode) {
+    var propsData = vnode.data;
+    var el = vnode.el;
+
+    for (var key in propsData) {
+      if (key === 'class') {
+        el.className = propsData[key];
+      } else if (key === 'style') {
+        for (var styleName in propsData[key]) {
+          el.style[styleName] = propsData[key][styleName];
+        }
+
+        console.log(el.style);
+      } else {
+        el.setAttribute(key, propsData[key]);
+      }
+    }
+  }
+
   function mountComponent(vm, el) {
     var options = vm.$options;
     vm.$el = el;
@@ -399,7 +531,10 @@
     new Watcher(vm, updateComponent, function () {}, true);
   }
   function lifecycleMixin(Vue) {
-    Vue.prototype._update = function () {};
+    Vue.prototype._update = function (vnode) {
+      var vm = this;
+      vm.$el = patch(vm.$el, vnode); //虚拟节点创建出真实节点替换掉原有$el
+    };
   }
 
   function initMixin(Vue) {
@@ -428,8 +563,52 @@
     };
   }
 
+  function createElement(tag) {
+    var data = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
+    var key = data.key;
+
+    if (key) {
+      delete data.key;
+    }
+
+    for (var _len = arguments.length, children = new Array(_len > 2 ? _len - 2 : 0), _key = 2; _key < _len; _key++) {
+      children[_key - 2] = arguments[_key];
+    }
+
+    return vNode(tag, data, key, children, undefined);
+  }
+  function createTextNode(text) {
+    return vNode(undefined, undefined, undefined, undefined, text);
+  }
+
+  function vNode(tag, data, key, children, text) {
+    return {
+      tag: tag,
+      data: data,
+      key: key,
+      children: children,
+      text: text
+    };
+  }
+
   function renderMixin(Vue) {
-    Vue.prototype._render = function () {};
+    Vue.prototype._c = function () {
+      return createElement.apply(void 0, arguments);
+    };
+
+    Vue.prototype._v = function (text) {
+      return createTextNode(text);
+    };
+
+    Vue.prototype._s = function (val) {
+      return val === null ? '' : _typeof(val) === 'object' ? JSON.stringify(val) : val;
+    };
+
+    Vue.prototype._render = function () {
+      var vm = this;
+      var render = vm.$options.render;
+      return render.call(vm);
+    };
   }
 
   var Vue = function Vue(options) {
@@ -444,7 +623,7 @@
 
   initMixin(Vue);
   renderMixin(Vue);
-  lifecycleMixin(vue);
+  lifecycleMixin(Vue);
 
   return Vue;
 

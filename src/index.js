@@ -14,5 +14,5 @@ class Vue{
 }
 initMixin(Vue)
 renderMixin(Vue)
-lifecycleMixin(vue)
+lifecycleMixin(Vue)
 export default Vue
