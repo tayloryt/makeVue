@@ -225,7 +225,7 @@
         args[_key] = arguments[_key];
       }
 
-      (_oldArrayPrototype$me = oldArrayPrototype[method]).call.apply(_oldArrayPrototype$me, [this].concat(args));
+      var result = (_oldArrayPrototype$me = oldArrayPrototype[method]).call.apply(_oldArrayPrototype$me, [this].concat(args));
 
       var insertData;
       var ob = this.__ob__;
@@ -242,6 +242,8 @@
       }
 
       if (insertData) ob.observeArray(insertData);
+      ob.dep.notify();
+      return result;
     };
   });
 
@@ -255,9 +257,14 @@
     }
 
     _createClass(Dep, [{
+      key: "addSub",
+      value: function addSub(watcher) {
+        this.subs.push(watcher);
+      }
+    }, {
       key: "depend",
       value: function depend() {
-        this.subs.push(Dep.target);
+        Dep.target.addDep(this);
       }
     }, {
       key: "notify",
@@ -285,6 +292,7 @@
       _classCallCheck(this, Observe);
 
       if (Array.isArray(value)) {
+        this.dep = new Dep();
         def(value, '__ob__', this);
         value.__proto__ = arrayMethods;
         this.observeArray(value);
@@ -313,12 +321,21 @@
   }();
 
   function defineReactive(data, key, value) {
-    observe(value);
+    var childOB = observe(value);
     var dep = new Dep();
     Object.defineProperty(data, key, {
       get: function get() {
+        // console.log('取值', value)
         if (Dep.target) {
           dep.depend();
+
+          if (childOB) {
+            childOB.dep.depend();
+
+            if (Array.isArray(value)) {
+              arrayDep(value);
+            }
+          }
         }
 
         return value;
@@ -332,9 +349,20 @@
     });
   }
 
+  function arrayDep(value) {
+    for (var i = 0; i < value.length; i++) {
+      var current = value[i];
+      current.__ob__ && current.__ob__.dep.depend();
+
+      if (Array.isArray(current)) {
+        arrayDep(current);
+      }
+    }
+  }
+
   function observe(data) {
     if (!isObject(data)) return;
-    new Observe(data);
+    return new Observe(data);
   }
 
   function initState(vm) {
@@ -582,6 +610,46 @@
     return renderFn;
   }
 
+  var callTicks = [];
+  var waiting = false;
+
+  function flushQueue() {
+    callTicks.forEach(function (cb) {
+      return cb();
+    });
+    waiting = false;
+  }
+
+  function nextTick(cb) {
+    callTicks.push(cb);
+
+    if (!waiting) {
+      setTimeout(flushQueue, 0);
+      waiting = true;
+    }
+  }
+
+  var queue = [];
+  var has = {};
+
+  function flushQueue$1() {
+    queue.forEach(function (item) {
+      return item.run();
+    });
+    has = {};
+    queue.length = 0;
+  }
+
+  function queueWatcher(watcher) {
+    var id = watcher.id;
+
+    if (has[id] === undefined) {
+      queue.push(watcher);
+      has[id] = true;
+      nextTick(flushQueue$1);
+    }
+  }
+
   var id$1 = 0;
 
   var Watcher = /*#__PURE__*/function () {
@@ -593,10 +661,24 @@
       this.cb = cb;
       this.id = id$1++;
       this.options = options;
+      this.depIds = new Set();
+      this.deps = [];
       this.get();
     }
 
     _createClass(Watcher, [{
+      key: "addDep",
+      value: function addDep(Dep) {
+        var id = Dep.id;
+
+        if (!this.depIds.has(id)) {
+          this.depIds.add(id);
+          this.deps.push(Dep);
+          console.log(id, 'watcher');
+          Dep.addSub(this);
+        }
+      }
+    }, {
       key: "get",
       value: function get() {
         pushTarget(this);
@@ -606,6 +688,11 @@
     }, {
       key: "update",
       value: function update() {
+        queueWatcher(this);
+      }
+    }, {
+      key: "run",
+      value: function run() {
         this.get();
       }
     }]);
@@ -670,6 +757,8 @@
     callHook(vm, 'beforeMount');
 
     var updateComponent = function updateComponent() {
+      console.log('update');
+
       vm._update(vm._render());
     };
 
@@ -718,6 +807,8 @@
 
       mountComponent(vm, el);
     };
+
+    Vue.prototype.$nextTick = nextTick;
   }
 
   function createElement(tag) {

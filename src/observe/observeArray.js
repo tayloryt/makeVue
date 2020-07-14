@@ -11,7 +11,7 @@ const METHODS = [
 ]
 METHODS.forEach(method => {
     arrayMethods[method] = function (...args) {
-        oldArrayPrototype[method].call(this, ...args);
+       const result = oldArrayPrototype[method].call(this, ...args);
         let insertData;
         let ob = this.__ob__
         switch (method) {
@@ -23,6 +23,9 @@ METHODS.forEach(method => {
                 insertData = args.slice(2)
                 break;
         }
+   
         if(insertData) ob.observeArray(insertData)
+        ob.dep.notify()
+        return result
     }
 })

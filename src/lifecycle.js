@@ -5,6 +5,7 @@ export function mountComponent(vm, el) {
     vm.$el = el;
     callHook(vm,'beforeMount')
     let updateComponent = () => {
+        console.log('update')
         vm._update(vm._render())
     }
     new Watcher(vm, updateComponent, () => { }, true)

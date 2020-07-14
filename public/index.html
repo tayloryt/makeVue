@@ -9,8 +9,8 @@
     <div id="app" class="app" style="color:white;background:black;font-size: 16px;">
         <p>hello{{world}}</p>
         <ul>
-            <li>{{name}}</li>
-            <li>{{age}}</li>
+            <li>{{arr}}</li>
+            <li>{{arr2}}</li>
         </ul>
     </div>
     <script src="../dist/umd/vue.js"></script>
@@ -21,16 +21,24 @@
                 return {
                     name:'yt',
                     age:'23',
-                    world:'world'
+                    world:'world',
+                    white:'white',
+                    arr:[1,2,3],
+                    arr2:[7]
                 }
             },
             beforeCreate() {
                 console.log('user')
             },
         })
-        setTimeout(()=>{
-            vm.age = 1000
-        },1000)
+      
+            vm.arr.push(4)
+            vm.arr.push(5)
+            vm.arr2.push(8)
+            vm.arr2.push(9)
+            vm.$nextTick(()=>{
+                console.log(vm.arr)
+            })
     </script>
 </body>
 </html>

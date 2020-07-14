@@ -1,6 +1,6 @@
 //判断是否数组
 export function isObject(data) {
-    return typeof data === 'object' && data !==null
+    return typeof data === 'object' && data !== null
 }
 export function def(data, key, value) {
     Object.defineProperty(data, key, {
@@ -9,7 +9,7 @@ export function def(data, key, value) {
         value
     })
 }
-export function proxy(vm,source,key) {
+export function proxy(vm, source, key) {
     Object.defineProperty(vm, key, {
         get() {
             return vm[source][key]
@@ -38,14 +38,14 @@ LIFECYCLE_HOOKS.forEach(hook => {
 export function mergeOptions(parent, child) {
     const options = {}
     for (let key in parent) {
-       merge(key)
+        merge(key)
     }
     for (let key in child) {
         merge(key)
     }
     function merge(key) {
         if (strats[key]) {
-            return options[key]=strats[key](parent[key],child[key])
+            return options[key] = strats[key](parent[key], child[key])
         }
         if (typeof parent[key] === 'object' && typeof child[key] === 'object') {
             options[key] = {

@@ -12,11 +12,11 @@ const TEXT_TYPE = 3;
 let currentParent;
 function createAstElement(tagName, attrs) {
     return {
-        tag:tagName,
+        tag: tagName,
         parent: null,
         children: [],
         attrs,
-        nodeType:TAG_TYPE
+        nodeType: TAG_TYPE
     }
 }
 function end(tagName) {
@@ -31,17 +31,17 @@ function end(tagName) {
     }
 }
 function chars(text) {
-    text = text.replace(/\s/g,'')
+    text = text.replace(/\s/g, '')
     let element = {
         nodeType: TEXT_TYPE,
         text
     }
     if (text && currentParent) {
-       currentParent.children.push(element) 
+        currentParent.children.push(element)
     }
 }
 function start(tagName, attrs) {
-    const element = createAstElement(tagName,attrs)
+    const element = createAstElement(tagName, attrs)
     if (!root) {
         root = element
     }
@@ -54,8 +54,8 @@ export function parseHtml(html) {
         if (textEnd === 0) {
             let startTagMatch = parseStartTag()
             if (startTagMatch) {
-                start(startTagMatch.tagName,startTagMatch.attrs)
-            continue
+                start(startTagMatch.tagName, startTagMatch.attrs)
+                continue
             }
             let endTagMatch = html.match(endTag)
             if (endTagMatch) {
@@ -69,7 +69,7 @@ export function parseHtml(html) {
             text = html.substring(0, textEnd)
         }
         if (text) {
-            advance(text.length) 
+            advance(text.length)
             chars(text)
         }
     }
@@ -81,15 +81,15 @@ export function parseHtml(html) {
         if (start) {
             const match = {
                 tagName: start[1],
-                attrs:[]
+                attrs: []
             }
             advance(start[0].length)
-          
+
             let end, attr;
             while (!(end = html.match(startTagClose)) && (attr = html.match(attribute))) {
                 match.attrs.push({
                     name: attr[1],
-                    value:attr[3] || attr[4] || attr[5]
+                    value: attr[3] || attr[4] || attr[5]
                 })
                 advance(attr[0].length)
             }
