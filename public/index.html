@@ -24,9 +24,13 @@
                     world:'world'
                 }
             },
+            beforeCreate() {
+                console.log('user')
+            },
         })
-        // vm._data.name.push({name:'yt'})
-        console.log(vm.name)
+        setTimeout(()=>{
+            vm.age = 1000
+        },1000)
     </script>
 </body>
 </html>

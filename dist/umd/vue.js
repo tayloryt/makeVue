@@ -42,6 +42,55 @@
     return Constructor;
   }
 
+  function _defineProperty(obj, key, value) {
+    if (key in obj) {
+      Object.defineProperty(obj, key, {
+        value: value,
+        enumerable: true,
+        configurable: true,
+        writable: true
+      });
+    } else {
+      obj[key] = value;
+    }
+
+    return obj;
+  }
+
+  function ownKeys(object, enumerableOnly) {
+    var keys = Object.keys(object);
+
+    if (Object.getOwnPropertySymbols) {
+      var symbols = Object.getOwnPropertySymbols(object);
+      if (enumerableOnly) symbols = symbols.filter(function (sym) {
+        return Object.getOwnPropertyDescriptor(object, sym).enumerable;
+      });
+      keys.push.apply(keys, symbols);
+    }
+
+    return keys;
+  }
+
+  function _objectSpread2(target) {
+    for (var i = 1; i < arguments.length; i++) {
+      var source = arguments[i] != null ? arguments[i] : {};
+
+      if (i % 2) {
+        ownKeys(Object(source), true).forEach(function (key) {
+          _defineProperty(target, key, source[key]);
+        });
+      } else if (Object.getOwnPropertyDescriptors) {
+        Object.defineProperties(target, Object.getOwnPropertyDescriptors(source));
+      } else {
+        ownKeys(Object(source)).forEach(function (key) {
+          Object.defineProperty(target, key, Object.getOwnPropertyDescriptor(source, key));
+        });
+      }
+    }
+
+    return target;
+  }
+
   function _slicedToArray(arr, i) {
     return _arrayWithHoles(arr) || _iterableToArrayLimit(arr, i) || _unsupportedIterableToArray(arr, i) || _nonIterableRest();
   }
@@ -120,6 +169,51 @@
     });
   }
 
+  function mergeHook(parentVal, childVal) {
+    if (childVal) {
+      if (parentVal) {
+        return parentVal.concat(childVal);
+      } else {
+        return [childVal];
+      }
+    } else {
+      return [parentVal];
+    }
+  }
+
+  var LIFECYCLE_HOOKS = ['beforeCreate', 'created', 'beforeMount', 'Mounted', 'beforeUpdate', 'updated', 'beforeDestroy', 'destroyed'];
+  var strats = {};
+  LIFECYCLE_HOOKS.forEach(function (hook) {
+    strats[hook] = mergeHook;
+  });
+  function mergeOptions(parent, child) {
+    var options = {};
+
+    for (var key in parent) {
+      merge(key);
+    }
+
+    for (var _key in child) {
+      merge(_key);
+    }
+
+    function merge(key) {
+      if (strats[key]) {
+        return options[key] = strats[key](parent[key], child[key]);
+      }
+
+      if (_typeof(parent[key]) === 'object' && _typeof(child[key]) === 'object') {
+        options[key] = _objectSpread2(_objectSpread2({}, parent[key]), child[key]);
+      } else if (child[key] === undefined) {
+        options[key] = parent[key];
+      } else {
+        options[key] = child[key];
+      }
+    }
+
+    return options;
+  }
+
   var oldArrayPrototype = Array.prototype;
   var arrayMethods = Object.create(oldArrayPrototype);
   var METHODS = ['push', 'splice', 'unshift', 'pop', 'shift', 'reverse', 'sort'];
@@ -150,6 +244,41 @@
       if (insertData) ob.observeArray(insertData);
     };
   });
+
+  var id = 0;
+  var Dep = /*#__PURE__*/function () {
+    function Dep() {
+      _classCallCheck(this, Dep);
+
+      this.id = id++;
+      this.subs = [];
+    }
+
+    _createClass(Dep, [{
+      key: "depend",
+      value: function depend() {
+        this.subs.push(Dep.target);
+      }
+    }, {
+      key: "notify",
+      value: function notify() {
+        this.subs.forEach(function (watcher) {
+          return watcher.update();
+        });
+      }
+    }]);
+
+    return Dep;
+  }();
+  var stack = [];
+  function pushTarget(watcher) {
+    Dep.target = watcher;
+    stack.push(watcher);
+  }
+  function popTarget() {
+    stack.pop();
+    Dep.target = stack[stack.length - 1];
+  }
 
   var Observe = /*#__PURE__*/function () {
     function Observe(value) {
@@ -185,14 +314,20 @@
 
   function defineReactive(data, key, value) {
     observe(value);
+    var dep = new Dep();
     Object.defineProperty(data, key, {
       get: function get() {
+        if (Dep.target) {
+          dep.depend();
+        }
+
         return value;
       },
       set: function set(newValue) {
         if (newValue === value) return;
         observe(newValue);
         value = newValue;
+        dep.notify();
       }
     });
   }
@@ -234,7 +369,7 @@
   var attribute = /^\s*([^\s"'<>\/=]+)(?:\s*(=)\s*(?:"([^"]*)"+|'([^']*)'+|([^\s"'=<>`]+)))?/;
   var startTagClose = /^\s*(\/?)>/;
   var root = null;
-  var stack = [];
+  var stack$1 = [];
   var TAG_TYPE = 1;
   var TEXT_TYPE = 3;
   var currentParent;
@@ -250,13 +385,13 @@
   }
 
   function end(tagName) {
-    var element = stack.pop();
+    var element = stack$1.pop();
 
     if (element.tag !== tagName) {
       throw new Error('html error');
     }
 
-    currentParent = stack[stack.length - 1];
+    currentParent = stack$1[stack$1.length - 1];
 
     if (currentParent) {
       currentParent.children.push(element);
@@ -284,7 +419,7 @@
     }
 
     currentParent = element;
-    stack.push(element);
+    stack$1.push(element);
   }
 
   function parseHtml(html) {
@@ -447,6 +582,8 @@
     return renderFn;
   }
 
+  var id$1 = 0;
+
   var Watcher = /*#__PURE__*/function () {
     function Watcher(vm, getter, cb, options) {
       _classCallCheck(this, Watcher);
@@ -454,6 +591,7 @@
       this.vm = vm;
       this.getter = getter;
       this.cb = cb;
+      this.id = id$1++;
       this.options = options;
       this.get();
     }
@@ -461,7 +599,14 @@
     _createClass(Watcher, [{
       key: "get",
       value: function get() {
+        pushTarget(this);
         this.getter();
+        popTarget();
+      }
+    }, {
+      key: "update",
+      value: function update() {
+        this.get();
       }
     }]);
 
@@ -477,6 +622,7 @@
       var el = createElm(vnode);
       parentElm.insertBefore(el, oldElm.nextSibling);
       parentElm.removeChild(oldElm);
+      return el;
     }
   }
 
@@ -512,8 +658,6 @@
         for (var styleName in propsData[key]) {
           el.style[styleName] = propsData[key][styleName];
         }
-
-        console.log(el.style);
       } else {
         el.setAttribute(key, propsData[key]);
       }
@@ -523,12 +667,14 @@
   function mountComponent(vm, el) {
     var options = vm.$options;
     vm.$el = el;
+    callHook(vm, 'beforeMount');
 
     var updateComponent = function updateComponent() {
       vm._update(vm._render());
     };
 
     new Watcher(vm, updateComponent, function () {}, true);
+    callHook(vm, 'mounted');
   }
   function lifecycleMixin(Vue) {
     Vue.prototype._update = function (vnode) {
@@ -536,12 +682,23 @@
       vm.$el = patch(vm.$el, vnode); //虚拟节点创建出真实节点替换掉原有$el
     };
   }
+  function callHook(vm, hook) {
+    var handlers = vm.$options[hook];
+
+    if (handlers) {
+      for (var i = 0; i < handlers.length; i++) {
+        handlers[i].call(vm);
+      }
+    }
+  }
 
   function initMixin(Vue) {
     Vue.prototype._init = function (options) {
       var vm = this;
-      vm.$options = options;
+      vm.$options = mergeOptions(vm.constructor.options, options);
+      callHook(vm, 'beforeCreate');
       initState(vm);
+      callHook(vm, 'created');
     };
 
     Vue.prototype.$mount = function (el) {
@@ -611,6 +768,15 @@
     };
   }
 
+  function initOptionsAPI(Vue) {
+    Vue.options = {};
+
+    Vue.mixin = function (mixin) {
+      this.options = mergeOptions(this.options, mixin);
+      console.log(this.options);
+    };
+  }
+
   var Vue = function Vue(options) {
     _classCallCheck(this, Vue);
 
@@ -624,6 +790,7 @@
   initMixin(Vue);
   renderMixin(Vue);
   lifecycleMixin(Vue);
+  initOptionsAPI(Vue);
 
   return Vue;
 

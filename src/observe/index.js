@@ -3,7 +3,8 @@
  * @param {*}data 
  */
 import { isObject, def } from '../utils/index'
-import {arrayMethods} from './observeArray'
+import { arrayMethods } from './observeArray'
+import {Dep} from './dep'
 class Observe{
     constructor(value) {
         if (Array.isArray(value)) {
@@ -28,14 +29,19 @@ class Observe{
 }
 function defineReactive(data, key, value) {
     observe(value)
+    const dep = new Dep()
     Object.defineProperty(data, key, {
         get() {
+            if (Dep.target) {
+                dep.depend()
+            }
             return value
         },
         set(newValue) {
             if (newValue === value) return;
             observe(newValue)
             value = newValue
+            dep.notify()
         }
     })
 }

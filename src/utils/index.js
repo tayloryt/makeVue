@@ -19,3 +19,44 @@ export function proxy(vm,source,key) {
         }
     })
 }
+function mergeHook(parentVal, childVal) {
+    if (childVal) {
+        if (parentVal) {
+            return parentVal.concat(childVal)
+        } else {
+            return [childVal]
+        }
+    } else {
+        return [parentVal]
+    }
+}
+const LIFECYCLE_HOOKS = ['beforeCreate', 'created', 'beforeMount', 'Mounted', 'beforeUpdate', 'updated', 'beforeDestroy', 'destroyed']
+let strats = {}
+LIFECYCLE_HOOKS.forEach(hook => {
+    strats[hook] = mergeHook
+})
+export function mergeOptions(parent, child) {
+    const options = {}
+    for (let key in parent) {
+       merge(key)
+    }
+    for (let key in child) {
+        merge(key)
+    }
+    function merge(key) {
+        if (strats[key]) {
+            return options[key]=strats[key](parent[key],child[key])
+        }
+        if (typeof parent[key] === 'object' && typeof child[key] === 'object') {
+            options[key] = {
+                ...parent[key],
+                ...child[key]
+            }
+        } else if (child[key] === undefined) {
+            options[key] = parent[key]
+        } else {
+            options[key] = child[key]
+        }
+    }
+    return options
+}

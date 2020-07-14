@@ -6,6 +6,7 @@ export function patch(oldVnode,vnode) {
         let el = createElm(vnode);
         parentElm.insertBefore(el, oldElm.nextSibling)
         parentElm.removeChild(oldElm)
+        return el
     }
 }
 function createElm(vnode){
@@ -32,7 +33,6 @@ function updateProperties(vnode) {
             for (let styleName in propsData[key]) {
                 el.style[styleName] = propsData[key][styleName]
             }
-            console.log(el.style)
         } else {
             el.setAttribute(key,propsData[key])
         }

@@ -3,7 +3,8 @@
  */
 import { initMixin } from './init'
 import { renderMixin } from './render'
-import {lifecycleMixin} from './lifecycle'
+import { lifecycleMixin } from './lifecycle'
+import {initOptionsAPI} from './initOptionsAPI/index'
 class Vue{
     constructor(options) {
         this._init(options)
@@ -15,4 +16,5 @@ class Vue{
 initMixin(Vue)
 renderMixin(Vue)
 lifecycleMixin(Vue)
+initOptionsAPI(Vue)
 export default Vue
