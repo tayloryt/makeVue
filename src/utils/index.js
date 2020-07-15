@@ -35,6 +35,16 @@ let strats = {}
 LIFECYCLE_HOOKS.forEach(hook => {
     strats[hook] = mergeHook
 })
+strats.components = mergeAssets
+function mergeAssets(parentVal,childVal) {
+    let res = Object.create(parentVal)
+    if (childVal) {
+        for (let key in childVal) {
+            res[key] = childVal[key]
+        }
+    }
+    return res
+}
 export function mergeOptions(parent, child) {
     const options = {}
     for (let key in parent) {
@@ -59,4 +69,8 @@ export function mergeOptions(parent, child) {
         }
     }
     return options
+}
+export function isRealTag(tagName) {
+    const tagConfig = ['div', 'a', 'input', 'p', 'span', 'main', 'textarea','li','ul']
+    return tagConfig.includes(tagName)
 }

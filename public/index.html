@@ -12,9 +12,13 @@
             <li>{{arr}}</li>
             <li>{{arr2}}</li>
         </ul>
+        <my-component></my-component>
     </div>
     <script src="../dist/umd/vue.js"></script>
     <script>
+        Vue.component('my-component',{
+            template:'<div>hello</div>'
+        })
         let vm = new Vue({
             el:'#app',
             data() {
@@ -25,6 +29,11 @@
                     white:'white',
                     arr:[1,2,3],
                     arr2:[7]
+                }
+            },
+            components:{
+                'my-component':{
+                    template:'<div>world</div>'
                 }
             },
             beforeCreate() {
@@ -39,6 +48,7 @@
             vm.$nextTick(()=>{
                 console.log(vm.arr)
             })
+            console.log(vm.$options)
     </script>
 </body>
 </html>

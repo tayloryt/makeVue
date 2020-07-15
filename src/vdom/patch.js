@@ -13,10 +13,14 @@ function createElm(vnode){
     let { tag, data, children, key, text } = vnode
     if (typeof tag === 'string') {
         vnode.el = document.createElement(tag);
+        console.log(vnode.el)
         updateProperties(vnode)
-        children.forEach(child => {
-            return vnode.el.appendChild(createElm(child))
-        });
+        if (children) {
+            children.forEach(child => {
+                return vnode.el.appendChild(createElm(child))
+            });
+        }
+       
     } else {
         //虚拟dom映射真实dom
        vnode.el = document.createTextNode(text)

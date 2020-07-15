@@ -186,6 +186,20 @@
   LIFECYCLE_HOOKS.forEach(function (hook) {
     strats[hook] = mergeHook;
   });
+  strats.components = mergeAssets;
+
+  function mergeAssets(parentVal, childVal) {
+    var res = Object.create(parentVal);
+
+    if (childVal) {
+      for (var key in childVal) {
+        res[key] = childVal[key];
+      }
+    }
+
+    return res;
+  }
+
   function mergeOptions(parent, child) {
     var options = {};
 
@@ -212,6 +226,10 @@
     }
 
     return options;
+  }
+  function isRealTag(tagName) {
+    var tagConfig = ['div', 'a', 'input', 'p', 'span', 'main', 'textarea', 'li', 'ul'];
+    return tagConfig.includes(tagName);
   }
 
   var oldArrayPrototype = Array.prototype;
@@ -722,10 +740,14 @@
 
     if (typeof tag === 'string') {
       vnode.el = document.createElement(tag);
+      console.log(vnode.el);
       updateProperties(vnode);
-      children.forEach(function (child) {
-        return vnode.el.appendChild(createElm(child));
-      });
+
+      if (children) {
+        children.forEach(function (child) {
+          return vnode.el.appendChild(createElm(child));
+        });
+      }
     } else {
       //虚拟dom映射真实dom
       vnode.el = document.createTextNode(text);
@@ -811,37 +833,55 @@
     Vue.prototype.$nextTick = nextTick;
   }
 
-  function createElement(tag) {
-    var data = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
+  function createElement(vm, tag) {
+    var data = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : {};
     var key = data.key;
 
     if (key) {
       delete data.key;
     }
 
-    for (var _len = arguments.length, children = new Array(_len > 2 ? _len - 2 : 0), _key = 2; _key < _len; _key++) {
-      children[_key - 2] = arguments[_key];
+    for (var _len = arguments.length, children = new Array(_len > 3 ? _len - 3 : 0), _key = 3; _key < _len; _key++) {
+      children[_key - 3] = arguments[_key];
     }
 
-    return vNode(tag, data, key, children, undefined);
+    if (isRealTag(tag)) {
+      return vNode(tag, data, key, children, undefined);
+    } else {
+      console.log(tag);
+      var Ctor = vm.$options.components[tag];
+      return createComponent(vm, tag, data, key, children, Ctor);
+    }
+  }
+  function createComponent(vm, tag, data, key, children, Ctor) {
+    if (isObject(Ctor)) {
+      Ctor = vm.$options._base.extend(Ctor);
+    }
+
+    console.log(Ctor);
+    return vNode("vue-component-".concat(Ctor.id, "-").concat(tag), data, key, undefined, undefined, {
+      Ctor: Ctor,
+      children: children
+    });
   }
   function createTextNode(text) {
     return vNode(undefined, undefined, undefined, undefined, text);
   }
 
-  function vNode(tag, data, key, children, text) {
+  function vNode(tag, data, key, children, text, componentOptions) {
     return {
       tag: tag,
       data: data,
       key: key,
       children: children,
-      text: text
+      text: text,
+      componentOptions: componentOptions
     };
   }
 
   function renderMixin(Vue) {
     Vue.prototype._c = function () {
-      return createElement.apply(void 0, arguments);
+      return createElement.apply(void 0, [this].concat(Array.prototype.slice.call(arguments)));
     };
 
     Vue.prototype._v = function (text) {
@@ -859,13 +899,56 @@
     };
   }
 
-  function initOptionsAPI(Vue) {
-    Vue.options = {};
-
+  function initMixin$1(Vue) {
     Vue.mixin = function (mixin) {
       this.options = mergeOptions(this.options, mixin);
       console.log(this.options);
     };
+  }
+
+  var ASSETS_TYPE = ['component', 'directive', 'filter'];
+
+  function initAssetsRegisters(Vue) {
+    ASSETS_TYPE.forEach(function (type) {
+      Vue[type] = function (id, definition) {
+        console.log(id, definition);
+
+        switch (type) {
+          case 'component':
+            definition = this.options._base.extend(definition);
+            break;
+        }
+
+        this.options[type + 's'][id] = definition;
+      };
+    });
+  }
+
+  function initExtend(Vue) {
+    var cid = 0;
+
+    Vue.extend = function (extendOptions) {
+      var Sub = function VueComponent(options) {
+        this._init(options);
+      };
+
+      Sub.prototype = Object.create(this.prototype);
+      Sub.prototype.constructor = Sub;
+      Sub.id = cid++;
+      mergeOptions(this.options, extendOptions);
+      return Sub;
+    };
+  }
+
+  function initOptionsAPI(Vue) {
+    Vue.options = {};
+    Vue.options._base = Vue;
+    initMixin$1(Vue);
+    ASSETS_TYPE.forEach(function (type) {
+      Vue.options[type + 's'] = {};
+    });
+    initExtend(Vue);
+    initAssetsRegisters(Vue);
   }
 
   var Vue = function Vue(options) {
